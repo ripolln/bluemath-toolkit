@@ -19,7 +19,6 @@ and required data have been added to this repository.
     - smooth\_gev\_shape
     - acov
     - peaks\_over\_threshold
-
 - [kma](./bluemathtk/kma.py) KMeans Classification and bmus utils
     - persistences 
     - cluster\_probabilities
@@ -28,8 +27,7 @@ and required data have been added to this repository.
     - kma\_simple
     - kma\_regression\_guided
     - simple\_multivariate\_regression\_model
-
-- [mda](./bluemathtk/mda.py) MaxDiss Classification library 
+- [mda](./bluemathtk/mda.py) MaxDiss Classification library
     - normalize 
     - denormalize 
     - normalized\_distance
