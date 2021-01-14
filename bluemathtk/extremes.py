@@ -303,5 +303,35 @@ def peaks_over_threshold(xds, var_name, percentile=99, threshold=None,
 
     return peaks
 
+def return_period(xda):
+    '''
 
+    Calculate return period for a variable
+
+    xda         - xarray.Dataarray (dimension: yearly time)
+
+    returns xarray.Dataset       #####('time', ) vars: peaks, excedeence, area, and duration
+    '''
+
+    # aux func for calculating rp time
+    def t_rp(time_y):
+        ny = len(time_y)
+        return np.array([1/(1-(n/(ny+1))) for n in np.arange(1,ny+1)])
+
+    # clean nans
+    t = xda.year.values[:]
+    v = xda.values[:]
+
+    ix_nan = np.isnan(v)
+    t = t[~ix_nan]
+    v = v[~ix_nan]
+
+    # return period calculation and variable sorting
+    rp = t_rp(t)
+    rv = np.sort(v)
+
+    # output
+    rp = xr.DataArray(rv, coords = [rp], dims= ['return period'])
+
+    return rp
 
