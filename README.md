@@ -33,6 +33,32 @@ and required data have been added to this repository.
     - normalized\_distance
     - nearest\_indexes
     - maxdiss\_simplified\_no\_threshold
+- [mjo](./bluemathtk/mjo.py) Madden-Julian Oscillation library 
+    - categories 
+    - phases 
+- [rbf](./bluemathtk/rbf.py) Radial Basis Function library
+    - rbfphi\_linear 
+    - rbfphi\_cubic 
+    - rbfphi\_gaussian 
+    - rbfphi\_multiquadratic 
+    - rbfphi\_thinplate 
+    - rbf\_asemble 
+    - cost\_eps 
+    - rbf\_coefficient 
+    - rbf\_interpolation 
+    - rbf\_reconstruction 
+    - rbf\_validation 
+- [statistical](./bluemathtk/statistical.py) kernel CDFs, ICDFs and copula simulation
+    - ksdensity\_cdf 
+    - ksdensity\_icdf 
+    - generalizedpareto\_cdf 
+    - generalizedpareto\_icdf 
+    - empirical\_cdf 
+    - empirical\_icdf 
+    - copulafit
+    - copularnd
+    - copula\_simulation
+    - runmean 
 
 
 ## Documentation
@@ -65,6 +91,9 @@ Then install bluemathtk:
 - [POT extremes](./demos/demo_extremes_pot.py) peaks over threshold methodology
 - [KMeans Classification](./demos/demo_kma.py) KMA classification por PCA and climate data 
 - [MaxDiss Classification](./demos/demo_mda.py) MDA classification climate data 
+- [Madden-Julian Oscillation](./demos/demo_mjo.py) MJO categories and phases calculation
+- [Radial Basis Functions](./demos/demo_rbf.py) RBF Reconstruction and Kfold validation 
+- [Copula Simulation](./demos/demo_copula_simulation.py) Statistical variables simulation  
 
 
 ## Contributors:
