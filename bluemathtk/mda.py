@@ -1,188 +1,102 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
+# TODO all multiplications / divisions with np.pi could be removed without affecting end results
 import numpy as np
 
 
-def normalize(data, ix_scalar, ix_directional, minis=[], maxis=[]):
+def normalize_base(data, minis, maxis, idir=None):
     '''
-    Normalize data subset.      norm = (val - min) / (max - min)
+    normalize data based on externally set max and min values
 
-    data            - data to normalize  (numpy.array)
-    ix_scalar       - scalar columns indexes  (list[int])
-    ix_directional  - directional columns indexes  (list[int])
-
-    minis, maxis    - use to externally set max and min values  (list[float])
+    data - data to normalize, data variables at columns.
+    minis, maxis - externally set min and max values
+    idir - directional columns indexes
     '''
-
-    data_norm = np.zeros(data.shape) * np.nan
-
-    # calculate maxs and mins 
-    if minis==[] or maxis==[]:
-
-        # scalar data
-        for ix in ix_scalar:
-            v = data[:, ix]
-            mi = np.amin(v)
-            ma = np.amax(v)
-            data_norm[:, ix] = (v - mi) / (ma - mi)
-            minis.append(mi)
-            maxis.append(ma)
-
-        minis = np.array(minis)
-        maxis = np.array(maxis)
-
-    # max and mins given
-    else:
-
-        # scalar data
-        for c, ix in enumerate(ix_scalar):
-            v = data[:, ix]
-            mi = minis[c]
-            ma = maxis[c]
-            data_norm[:,ix] = (v - mi) / (ma - mi)
-
-    # directional data (º)
-    for ix in ix_directional:
-        v = data[:,ix]
-        data_norm[:,ix] = v * np.pi / 180.0
+    data_norm = (data - minis) / (maxis - minis)
+    if idir is not None:
+        data_norm[:, idir] = data[:, idir] * np.pi / 180.0
+    return data_norm
 
 
+def normalize(data, idir=None):
+    '''
+    normalize data for MaxDiss algorithm
+
+    data - data to normalize, data variables at columns.
+    idir - directional columns indexes
+    '''
+    minis = data.min(axis=0, keepdims=True)
+    maxis = data.max(axis=0, keepdims=True)
+    data_norm = normalize_base(data, minis, maxis, idir)
     return data_norm, minis, maxis
 
-def denormalize(data_norm, ix_scalar, ix_directional, minis, maxis):
+
+def denormalize(data_norm, minis, maxis, idir=None):
     '''
-    Denormalize data subset
+    denormalize data normalized for MaxDiss algorithm
 
-    data            - data to denormalize  (numpy.array)
-    ix_scalar       - scalar columns indexes  (list[int])
-    ix_directional  - directional columns indexes  (list[int])
-    minis, maxis    - max and min values  (list[float])
+    data_norm - normalized data, data variables at columns.
+    minis, maxis - externally set min and max values
+    idir - directional columns indexes
     '''
-
-    data = np.zeros(data_norm.shape) * np.nan
-
-    # scalar data
-    for c, ix in enumerate(ix_scalar):
-        v = data_norm[:,ix]
-        mi = minis[c]
-        ma = maxis[c]
-        data[:, ix] = v * (ma - mi) + mi
-
-    # directional data
-    for ix in ix_directional:
-        v = data_norm[:,ix]
-        data[:, ix] = v * 180 / np.pi
-
+    data = data_norm * (maxis - minis) + minis
+    if idir is not None:
+        data[:, idir] = data_norm[:, idir] * 180.0 / np.pi
     return data
 
-def normalized_distance(M, D, ix_scalar, ix_directional):
+
+def normalized_distance(matrix, reference=0, idir=None):
     '''
     Normalized distance between rows in M and D
 
-    M - numpy array
-    D - numpy array
-    ix_scalar - scalar columns indexes
-    ix_directional - directional columns indexes
+    matrix - numpy array
+    reference - numpy array bradcastable to matrix or number
+    idir - directional columns indexes
     '''
-
-    dif = np.zeros(M.shape)
-
-    # scalar
-    for ix in ix_scalar:
-        dif[:,ix] = D[:,ix] - M[:,ix]
-
-    # directional
-    for ix in ix_directional:
-        ab = np.absolute(D[:,ix] - M[:,ix])
-        dif[:,ix] = np.minimum(ab, 2*np.pi - ab)/np.pi
-
-    dist = np.sum(dif**2,1)
+    dif =  matrix - reference
+    if idir is not None:
+        dir_absdif = abs(dif[:, idir])
+        dif[:, idir] = np.minimum(dir_absdif, 2 * np.pi - dir_absdif) / np.pi
+    dist = np.sum(dif**2, 1)
     return dist
 
-def nearest_indexes(data_q, data, ix_scalar, ix_directional):
+
+def nearest_indexes(data_q, data, idir=None):
     '''
     for each row in data_q, find nearest point in data and store index.
 
     Returns array of indexes of each nearest point to all entries in data_q
     '''
-
-    # normalize scalar and directional data 
-    data_norm, minis, maxis = normalize(data, ix_scalar, ix_directional)
-    data_q_norm, _, _ = normalize(
-        data_q, ix_scalar, ix_directional,
-        minis=minis, maxis=maxis
-    )
+    # normalize scalar and directional data
+    data_norm, minis, maxis = normalize(data, idir)
+    data_q_norm =  normalize_base(data_q, minis, maxis, idir)
 
     # compute distances, store nearest distance index
-    ix_near = np.zeros(data_q_norm.shape[0]).astype(int)
+    i_near = np.zeros(data_q_norm.shape[0]).astype(int)
     for c, dq in enumerate(data_q_norm):
-        ddq = np.repeat([dq], data_norm.shape[0], axis=0)
-        D = normalized_distance(data_norm, ddq, ix_scalar, ix_directional)
-        ix_near[c] = np.argmin(D)
+        D = normalized_distance(data_norm, dq, idir)
+        i_near[c] = np.argmin(D)
+    return i_near
 
-    return ix_near
 
-def maxdiss_simplified_no_threshold(data, num_centers, ix_scalar,
-                                    ix_directional, log=False):
+def maxdiss(data, num_centers, idir=None, seed=None):
     '''
-    Normalize data and calculate centers using
-    maxdiss simplified no-threshold algorithm
+    Normalize data and calculate centers using maxdiss algorithm
 
-    data            - data to apply maxdiss algorithm  (numpy.array)
-                      data variables at columns
-    num_centers     - number of centers to calculate  (int)
-    ix_scalar       - scalar columns indexes  (list[int])
-    ix_directional  - directional columns indexes  (list[int])
-                      directional data has to be in degrees(º)
-
-    log             - True for printing maxdiss execution log  (bool)
+    data - data to apply maxdiss algorithm, data variables at columns
+    num_centers - number of centers to calculate
+    idir - directional columns indexes
     '''
+    print('\nMaxDiss parameters: {0} --> {1}\n'.format(data.shape[0], num_centers))
+    data_norm = normalize(data, idir)[0]
+    if seed is None:
+        # seed = data[:, 0].argmax()  # previous default
+        seed = normalized_distance(data_norm, 0, idir).argmax()
 
-    # normalize scalar and directional data
-    data_norm, minis, maxis = normalize(data, ix_scalar, ix_directional)
-
-    # mda seed
-    seed = np.where(data_norm[:,0] == np.amax(data_norm[:,0]))[0][0]
-
-    # initialize centroids subset
-    subset = np.array([data_norm[seed]])
-    train = np.delete(data_norm, seed, axis=0)
-
-    # repeat till we have desired num_centers
-    n_c = 1
-    while n_c < num_centers:
-        m = np.ones((train.shape[0],1))
-        m2 = subset.shape[0]
-
-        if m2 == 1:
-            xx2 = np.repeat(subset, train.shape[0], axis=0)
-            d_last = normalized_distance(train, xx2, ix_scalar, ix_directional)
-
-        else:
-            xx = np.array([subset[-1,:]])
-            xx2 = np.repeat(xx, train.shape[0], axis=0)
-            d_prev = normalized_distance(train, xx2, ix_scalar, ix_directional)
-            d_last = np.minimum(d_prev, d_last)
-
-        qerr, bmu = np.amax(d_last), np.argmax(d_last)
-
-        if not np.isnan(qerr):
-            subset = np.append(subset, np.array([train[bmu,:]]), axis=0)
-            train = np.delete(train, bmu, axis=0)
-            d_last = np.delete(d_last, bmu, axis=0)
-
-            # optional log
-            if log:
-                fmt = '0{0}d'.format(len(str(num_centers)))
-                print('MDA: dataset {3} centroids: {1:{0}}/{2:{0}}'.format(
-                    fmt, subset.shape[0], num_centers, data.shape[0]), end='\r')
-
-        n_c = subset.shape[0]
-    print('\n')
-
-    # normalize scalar and directional data
-    centroids = denormalize(subset, ix_scalar, ix_directional, minis, maxis)
-
+    bmus = [seed]
+    cumdist = data_norm[:, 0] * 0
+    for _ in range(1, num_centers):
+        cumdist[bmus[-1]] = np.nan  # to avoid repeating centroids
+        reference = data_norm[bmus[-1], :]
+        cumdist += normalized_distance(data_norm, reference, idir)
+        bmus += [cumdist.argmax()]
+    centroids = data[bmus]
     return centroids
-
