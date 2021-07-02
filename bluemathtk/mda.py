@@ -86,10 +86,13 @@ def maxdiss(data, num_centers, idir=None, seed=None):
     idir - directional columns indexes
     '''
     print('\nMaxDiss parameters: {0} --> {1}\n'.format(data.shape[0], num_centers))
+    if data.shape[0] < num_centers:
+        raise ValueError("num_centers is too large")
+
     data_norm = normalize(data, idir)[0]
     if seed is None:
-        # seed = data[:, 0].argmax()  # previous default
-        seed = normalized_distance(data_norm, 0, idir).argmax()
+        # seed = np.nanargmax(data[:, 0])  # previous default
+        seed = np.nanargmax(normalized_distance(data_norm, 0, idir))
 
     bmus = [seed]
     cumdist = data_norm[:, 0] * 0
@@ -97,6 +100,6 @@ def maxdiss(data, num_centers, idir=None, seed=None):
         cumdist[bmus[-1]] = np.nan  # to avoid repeating centroids
         reference = data_norm[bmus[-1], :]
         cumdist += normalized_distance(data_norm, reference, idir)
-        bmus += [cumdist.argmax()]
+        bmus += [np.nanargmax(cumdist)]
     centroids = data[bmus]
     return centroids
